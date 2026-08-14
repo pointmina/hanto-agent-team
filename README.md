@@ -12,8 +12,8 @@ decisions stay in `design-*.md`, and code review never edits code.
 ```
 planner    -> batched clarifying questions -> docs/spec-<slug>.md (confirmed before writing)
 designer   -> docs/design-<slug>.md       (layout, states, tokens)
-developer  -> docs/impl-<slug>.md + code  (implementation, minimal, matches spec+design)
-tester     -> docs/test-report-<slug>.md  (PASS/FAIL against spec's success criteria)
+developer  -> step plan -> [impact review -> code -> brief -> confirm] per step -> docs/impl-<slug>.md
+tester     -> docs/test-report-<slug>.md  (PASS/FAIL, verified against spec's acceptance criteria)
 reviewer   -> findings (blocker/warn/nit), read-only
 ```
 
@@ -64,9 +64,25 @@ don't do X":
 |-----------|-----------------------------------------|----------------------------------|
 | planner   | Read, Grep, Glob, WebSearch, WebFetch, Write, AskUserQuestion | edit/write code |
 | designer  | Read, Write, WebFetch, Grep, Glob       | edit/write implementation code  |
-| developer | Read, Edit, Write, Bash, Grep, Glob     | (full — implements)             |
+| developer | Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion | advance to the next step without confirmation |
 | tester    | Read, Bash, Edit, Grep, Glob            | edit production code (test files only, by convention) |
 | reviewer  | Read, Grep, Bash, Glob                  | edit anything                   |
+
+## Model guidance
+
+All 5 agents do professional judgment work (spec interrogation, design tradeoffs, real
+implementation, bug verification, code review) — none of it is brainstorming/spell-check/
+formatting-tier work. Every agent is set to `model: sonnet` in its frontmatter by default;
+override per-call if a task genuinely needs Opus (e.g. a gnarly architecture or security
+call) or, for something outside this pipeline entirely, a lighter model. Don't drop any of
+these agents to a lightweight model expecting the same judgment quality.
+
+## Step-by-step confirmation (developer)
+
+`developer` doesn't implement a whole feature in one shot. It posts a numbered step plan
+first, then for each step: impact review (if touching existing code) → minimal code for
+that step only → a short brief → `AskUserQuestion` to gate before the next step. Confirmed
+steps are referred back to only as a compact done-list, not re-explained.
 
 ## License
 
