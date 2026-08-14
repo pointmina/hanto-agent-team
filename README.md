@@ -26,14 +26,21 @@ cause turns out to be a spec/design gap.
 
 ## Install
 
-Copy `.claude/agents/*.md` into your project's `.claude/agents/` directory:
+From inside any project:
+
+```bash
+npx github:pointmina/hanto-agent-team install
+```
+
+This copies the 5 agent files into `./.claude/agents/`. Claude Code picks them up as
+subagents automatically — no npm publish, no global install needed.
+
+Alternative (manual copy):
 
 ```bash
 git clone https://github.com/pointmina/hanto-agent-team.git
 cp hanto-agent-team/.claude/agents/*.md /path/to/your/project/.claude/agents/
 ```
-
-Claude Code will pick them up as subagents automatically.
 
 ## Usage
 

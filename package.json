@@ -1,0 +1,20 @@
+{
+  "name": "hanto-agent-team",
+  "version": "0.1.0",
+  "description": "Planner / designer / developer / tester / reviewer subagent team for Claude Code",
+  "bin": {
+    "hanto-agent-team": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    ".claude"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pointmina/hanto-agent-team.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
