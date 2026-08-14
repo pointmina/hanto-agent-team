@@ -10,7 +10,7 @@ decisions stay in `design-*.md`, and code review never edits code.
 ## Pipeline
 
 ```
-planner    -> docs/spec-<slug>.md         (what & why, non-goals, success criteria)
+planner    -> batched clarifying questions -> docs/spec-<slug>.md (confirmed before writing)
 designer   -> docs/design-<slug>.md       (layout, states, tokens)
 developer  -> docs/impl-<slug>.md + code  (implementation, minimal, matches spec+design)
 tester     -> docs/test-report-<slug>.md  (PASS/FAIL against spec's success criteria)
@@ -62,7 +62,7 @@ don't do X":
 
 | Agent     | Tools                                  | Can't do                        |
 |-----------|-----------------------------------------|----------------------------------|
-| planner   | Read, Grep, Glob, WebSearch, WebFetch, Write | edit/write code               |
+| planner   | Read, Grep, Glob, WebSearch, WebFetch, Write, AskUserQuestion | edit/write code |
 | designer  | Read, Write, WebFetch, Grep, Glob       | edit/write implementation code  |
 | developer | Read, Edit, Write, Bash, Grep, Glob     | (full — implements)             |
 | tester    | Read, Bash, Edit, Grep, Glob            | edit production code (test files only, by convention) |
