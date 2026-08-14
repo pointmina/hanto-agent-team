@@ -10,19 +10,33 @@ decisions stay in `design-*.md`, and code review never edits code.
 ## Pipeline
 
 ```
-planner    -> batched clarifying questions -> docs/spec-<slug>.md (confirmed before writing)
-designer   -> docs/design-<slug>.md       (layout, states, tokens)
-developer  -> step plan -> [impact review -> code -> brief -> confirm] per step -> docs/impl-<slug>.md
-tester     -> docs/test-report-<slug>.md  (PASS/FAIL, verified against spec's acceptance criteria)
-reviewer   -> findings (blocker/warn/nit), read-only
+planner    -> batched clarifying questions -> docs/spec-<slug>.md  [HUMAN APPROVAL]
+designer   -> docs/design-<slug>.md (layout, states, tokens)        [HUMAN APPROVAL]
+developer  -> step plan -> [impact review -> code -> brief -> confirm] per step  [HUMAN APPROVAL x N]
+tester     -> docs/test-report-<slug>.md (PASS/FAIL)                [HUMAN CHOICE on FAIL]
+reviewer   -> findings (blocker/warn/nit), read-only                [HUMAN APPROVAL to merge]
 ```
 
 `<slug>` is a kebab-case name for the feature/task, shared across all docs for that unit
 of work (e.g. `spec-login-form.md`, `design-login-form.md`, ...).
 
+## Human-in-the-loop gates
+
+No agent hands off silently. Every stage stops and uses `AskUserQuestion` before its output
+is treated as final:
+
+- **planner**: presents a 5-8 bullet summary, waits for confirmation before writing spec.md.
+- **designer**: summarizes key design decisions, waits for approval before developer starts.
+- **developer**: gates after *every* implementation step, not just at the end.
+- **tester**: on FAIL, asks the user to choose — send back to developer, adjust the spec, or
+  accept as a known limitation. Doesn't auto-loop.
+- **reviewer**: the final checkpoint. Blocker findings ask "fix now or accept the risk?";
+  a clean report still asks for explicit merge approval — a clean report is not itself a
+  green light.
+
 If `tester` reports FAIL or `reviewer` reports a `blocker`, the loop hands back to
-`developer` with the report attached — it does not restart from planner unless the root
-cause turns out to be a spec/design gap.
+`developer` with the report attached (per the user's choice) — it does not restart from
+planner unless the root cause turns out to be a spec/design gap.
 
 ## Install
 
@@ -63,10 +77,10 @@ don't do X":
 | Agent     | Tools                                  | Can't do                        |
 |-----------|-----------------------------------------|----------------------------------|
 | planner   | Read, Grep, Glob, WebSearch, WebFetch, Write, AskUserQuestion | edit/write code |
-| designer  | Read, Write, WebFetch, Grep, Glob       | edit/write implementation code  |
+| designer  | Read, Write, WebFetch, Grep, Glob, AskUserQuestion | edit/write implementation code |
 | developer | Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion | advance to the next step without confirmation |
-| tester    | Read, Bash, Edit, Grep, Glob            | edit production code (test files only, by convention) |
-| reviewer  | Read, Grep, Bash, Glob                  | edit anything                   |
+| tester    | Read, Bash, Edit, Grep, Glob, AskUserQuestion | edit production code (test files only, by convention) |
+| reviewer  | Read, Grep, Bash, Glob, AskUserQuestion | edit anything, or declare "done" without asking |
 
 ## Model guidance
 

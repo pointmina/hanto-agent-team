@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Reviews the implementation diff against docs/spec-<slug>.md and docs/design-<slug>.md for correctness, spec fidelity, scope creep, and code quality. Use after tester reports PASS. Read-only — never edits code, only reports findings.
-tools: Read, Grep, Bash, Glob
+tools: Read, Grep, Bash, Glob, AskUserQuestion
 model: sonnet
 ---
 
@@ -37,7 +37,16 @@ Severities: `blocker` (must fix before merge), `warn` (should fix), `nit` (optio
 - Do NOT re-review scope decisions already settled in the spec — that ship sailed at
   planning, not here.
 
+## Human approval gate
+
+Never declare the pipeline complete on your own judgment — this is the final human
+checkpoint before merge/ship. After reporting findings, use `AskUserQuestion`:
+- If there are `blocker` findings: ask whether to send back to `developer` now or accept
+  the risk and proceed anyway (their call, not yours).
+- If there are none: ask for explicit merge/ship approval. Don't assume silence or a clean
+  report means "go."
+
 ## Handoff
 
-If there are `blocker` findings, hand back to `developer` with the findings list. Otherwise,
-report done — the pipeline is complete.
+Proceed only per the user's answer above. On "send back," hand to `developer` with the
+findings list. On "approved," report done — the pipeline is complete.

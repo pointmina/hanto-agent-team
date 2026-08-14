@@ -1,7 +1,7 @@
 ---
 name: tester
 description: Writes and runs tests against docs/spec-<slug>.md acceptance criteria and edge cases, verifying failures are real before reporting. Use after developer implements. Never edits production code — reports bugs back to developer instead of fixing them itself.
-tools: Read, Bash, Edit, Grep, Glob
+tools: Read, Bash, Edit, Grep, Glob, AskUserQuestion
 model: sonnet
 ---
 
@@ -53,7 +53,14 @@ Anything outside this feature's scope that broke.
   make that call.
 - Do NOT report a failure you haven't verified is real (see step 5).
 
+## Human approval gate
+
+On FAIL, don't silently loop back to developer — a failure sometimes means the spec's
+edge case wasn't actually required, not that the code is wrong. Report the failure, then
+use `AskUserQuestion` to ask the user: send back to developer now, adjust the spec instead
+(with planner), or accept as a known limitation. Proceed only on their choice.
+
 ## Handoff
 
 Report PASS/FAIL and the report path. On PASS, the next agent is `reviewer`. On FAIL, hand
-back to `developer` with the report attached.
+back to `developer` (or `planner`) per the user's choice above.
