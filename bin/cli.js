@@ -2,6 +2,8 @@
 
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
+const defaults = require("./defaults");
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -60,15 +62,33 @@ function install() {
   console.log("planner -> designer -> developer -> tester -> reviewer");
 }
 
-// Placeholder used by modes not wired up yet in this step of the build.
-// Later steps replace this with the real claude spawn logic.
-function notImplementedYet(mode, { execution, input }) {
-  console.log(`[hanto] ${mode}: parsed ok (execution=${execution}, input=${JSON.stringify(input)})`);
-  console.log("[hanto] execution logic lands in a later build step.");
+// Runs `claude` (interactive) or `claude -p` (headless) with the given
+// prompt as the first message, inheriting stdio so the session behaves
+// exactly like running claude by hand. Propagates its exit code.
+function launchClaude(mode, execution, prompt) {
+  const label = execution === "headless" ? "headless" : "interactive";
+  console.log(`[hanto] ${mode} · ${label}`);
+
+  const args = execution === "headless" ? ["-p", prompt] : [prompt];
+  const result = spawnSync("claude", args, { stdio: "inherit" });
+
+  if (result.error) {
+    if (result.error.code === "ENOENT") {
+      console.error(
+        "[hanto] Could not find the Claude Code CLI (`claude`) on your PATH.\n" +
+          "Install it first: https://claude.com/claude-code"
+      );
+    } else {
+      console.error(`[hanto] Failed to launch claude: ${result.error.message}`);
+    }
+    process.exit(1);
+  }
+
+  process.exit(result.status == null ? 1 : result.status);
 }
 
 function runCommand(args) {
-  const { execution, rest } = parseExecutionFlag(args);
+  const { execution: flagExecution, rest } = parseExecutionFlag(args);
   const slug = rest[0];
   if (!slug) {
     printUsageAndExit("hanto run needs a <slug>.\n  Example: hanto run login-form \"login screen with email/password\"");
@@ -79,34 +99,50 @@ function runCommand(args) {
     );
   }
   const description = rest.slice(1).join(" ");
-  notImplementedYet("run", { execution: execution || "interactive", input: { slug, description } });
+
+  const config = defaults.loadConfig(process.cwd());
+  const execution = defaults.resolveExecution(config, "run", flagExecution);
+  const prompt = defaults.resolvePrompt(config, "run", { slug, input: description });
+  launchClaude("run", execution, prompt);
 }
 
 function findSkillsCommand(args) {
-  const { execution, rest } = parseExecutionFlag(args);
+  const { execution: flagExecution, rest } = parseExecutionFlag(args);
   const query = rest.join(" ");
   if (!query) {
     printUsageAndExit("hanto find-skills needs a query.\n  Example: hanto find-skills \"browser automation for tests\"");
   }
-  notImplementedYet("find-skills", { execution: execution || "interactive", input: query });
+
+  const config = defaults.loadConfig(process.cwd());
+  const execution = defaults.resolveExecution(config, "find-skills", flagExecution);
+  const prompt = defaults.resolvePrompt(config, "find-skills", { input: query });
+  launchClaude("find-skills", execution, prompt);
 }
 
 function mcpCommand(args) {
-  const { execution, rest } = parseExecutionFlag(args);
+  const { execution: flagExecution, rest } = parseExecutionFlag(args);
   const description = rest.join(" ");
   if (!description) {
     printUsageAndExit("hanto mcp needs a description.\n  Example: hanto mcp \"connect to the Notion API\"");
   }
-  notImplementedYet("mcp", { execution: execution || "interactive", input: description });
+
+  const config = defaults.loadConfig(process.cwd());
+  const execution = defaults.resolveExecution(config, "mcp", flagExecution);
+  const prompt = defaults.resolvePrompt(config, "mcp", { input: description });
+  launchClaude("mcp", execution, prompt);
 }
 
 function quickCommand(args) {
-  const { execution, rest } = parseExecutionFlag(args);
+  const { execution: flagExecution, rest } = parseExecutionFlag(args);
   const task = rest.join(" ");
   if (!task) {
     printUsageAndExit("hanto quick needs a task.\n  Example: hanto quick \"rename foo() to bar() across the repo\"");
   }
-  notImplementedYet("quick", { execution: execution || "interactive", input: task });
+
+  const config = defaults.loadConfig(process.cwd());
+  const execution = defaults.resolveExecution(config, "quick", flagExecution);
+  const prompt = defaults.resolvePrompt(config, "quick", { input: task });
+  launchClaude("quick", execution, prompt);
 }
 
 function configCommand() {
