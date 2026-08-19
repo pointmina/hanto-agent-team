@@ -242,6 +242,16 @@ load();
 
 function startConfigServer(cwd) {
   let idleTimer;
+  let expectedOrigin = null; // set once the server knows its own port
+
+  // Blocks cross-origin POSTs from other browser tabs (CSRF) while still
+  // allowing non-browser callers (curl, scripts) that send no Origin header
+  // at all - a real browser always sends Origin on a cross-origin fetch.
+  function isAllowedOrigin(req) {
+    const origin = req.headers.origin;
+    if (!origin) return true;
+    return origin === expectedOrigin;
+  }
 
   function scheduleShutdown(delayMs) {
     setTimeout(() => {
@@ -259,6 +269,12 @@ function startConfigServer(cwd) {
 
   const server = http.createServer((req, res) => {
     resetIdleTimer();
+
+    if (req.method === "POST" && !isAllowedOrigin(req)) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, errors: ["잘못된 출처(origin)의 요청입니다."] }));
+      return;
+    }
 
     if (req.method === "GET" && req.url === "/") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -327,6 +343,7 @@ function startConfigServer(cwd) {
   server.listen(0, "127.0.0.1", () => {
     const { port } = server.address();
     const url = `http://127.0.0.1:${port}/`;
+    expectedOrigin = `http://127.0.0.1:${port}`;
     console.log(`[hanto] Config UI: ${url}`);
     console.log("[hanto] Opening in your browser (Ctrl+C to cancel)...");
     openBrowser(url);
