@@ -29,16 +29,21 @@ function validateBody(body) {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return ["요청 본문이 올바른 형식이 아닙니다."];
   }
-  if (body.defaultExecution != null && !defaults.VALID_EXECUTIONS.has(body.defaultExecution)) {
+  if (!defaults.isValidExecutionValue(body.defaultExecution)) {
     errors.push("defaultExecution 값이 올바르지 않습니다.");
   }
   const modes = body.modes || {};
   for (const mode of defaults.MODES) {
-    const m = modes[mode] || {};
-    if (m.execution != null && !defaults.VALID_EXECUTIONS.has(m.execution)) {
+    if (!(mode in modes)) continue;
+    const m = modes[mode];
+    if (typeof m !== "object" || m === null || Array.isArray(m)) {
+      errors.push(`${mode} 항목이 올바른 형식이 아닙니다.`);
+      continue;
+    }
+    if (!defaults.isValidExecutionValue(m.execution)) {
       errors.push(`${mode}의 실행 방식 값이 올바르지 않습니다.`);
     }
-    if (m.prompt != null && typeof m.prompt !== "string") {
+    if (!defaults.isValidPromptValue(m.prompt)) {
       errors.push(`${mode}의 프롬프트 값이 문자열이 아닙니다.`);
     }
   }
@@ -312,7 +317,7 @@ function startConfigServer(cwd) {
           return;
         }
 
-        const merged = defaults.mergeConfig(defaults.defaultConfig(), body);
+        const merged = defaults.mergeConfig(defaults.loadConfig(cwd), body);
         try {
           defaults.saveConfig(cwd, merged);
         } catch (err) {
