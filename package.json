@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Planner / designer / developer / tester / reviewer subagent team for Claude Code",
   "bin": {
-    "hanto-agent-team": "bin/cli.js"
+    "hanto-agent-team": "bin/cli.js",
+    "hanto": "bin/cli.js"
   },
   "files": [
     "bin",
