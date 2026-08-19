@@ -114,6 +114,14 @@ function resolvePrompt(config, mode, vars) {
   for (const [key, value] of Object.entries(vars)) {
     prompt = prompt.split(`{${key}}`).join(value == null ? "" : String(value));
   }
+
+  const leftover = prompt.match(/\{[a-zA-Z0-9_]+\}/g);
+  if (leftover) {
+    console.error(
+      `[hanto] Warning: this "${mode}" prompt still contains unresolved placeholder(s): ${leftover.join(", ")}`
+    );
+  }
+
   return prompt;
 }
 

@@ -275,6 +275,9 @@ function startConfigServer(cwd) {
 
     if (req.method === "POST" && req.url === "/api/config") {
       let raw = "";
+      req.on("error", (err) => {
+        console.error(`[hanto] Request aborted before it finished: ${err.message}`);
+      });
       req.on("data", (chunk) => (raw += chunk));
       req.on("end", () => {
         let body;

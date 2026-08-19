@@ -69,8 +69,14 @@ function launchClaude(mode, execution, prompt) {
   const label = execution === "headless" ? "headless" : "interactive";
   console.log(`[hanto] ${mode} · ${label}`);
 
-  const args = execution === "headless" ? ["-p", prompt] : [prompt];
-  const result = spawnSync("claude", args, { stdio: "inherit" });
+  // "--" marks the end of options so a prompt that happens to start with
+  // "-" (e.g. a user running `hanto quick -p`) is never mistaken for one
+  // of claude's own flags.
+  const args = execution === "headless" ? ["-p", "--", prompt] : ["--", prompt];
+  const result = spawnSync("claude", args, {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
 
   if (result.error) {
     if (result.error.code === "ENOENT") {
@@ -176,7 +182,7 @@ function main() {
     case "--help":
     case undefined:
       console.log(USAGE);
-      process.exit(cmd ? 0 : 1);
+      process.exit(0);
       break;
     default:
       printUsageAndExit(`Unknown command: "${cmd}"`);
