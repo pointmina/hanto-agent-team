@@ -146,7 +146,7 @@ function quickCommand(args) {
 }
 
 function configCommand() {
-  console.log("[hanto] config UI lands in a later build step.");
+  require("./config-server").startConfigServer(process.cwd());
 }
 
 function main() {
