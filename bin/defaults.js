@@ -71,24 +71,57 @@ function loadConfig(cwd) {
   return mergeConfig(base, parsed);
 }
 
-function mergeConfig(base, override) {
-  const merged = defaultConfig();
+function isValidExecutionValue(value) {
+  return value == null || VALID_EXECUTIONS.has(value);
+}
 
-  if (override && VALID_EXECUTIONS.has(override.defaultExecution)) {
-    merged.defaultExecution = override.defaultExecution;
-  }
+function isValidPromptValue(value) {
+  return value == null || typeof value === "string";
+}
+
+function hasOwn(obj, key) {
+  return obj != null && Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+// A field that's simply absent from `entry` falls back to `base` (patch
+// semantics); a field explicitly sent as null/invalid resets to null
+// (falls back to the built-in default at resolve time). This distinction
+// matters: the settings UI always sends every field explicitly (including
+// null for "follow the default"), so it must be able to clear a field, not
+// just leave old values in place.
+function normalizeModeEntry(entry, base) {
+  const execution = hasOwn(entry, "execution")
+    ? (isValidExecutionValue(entry.execution) ? entry.execution : null)
+    : base.execution;
+
+  const prompt = hasOwn(entry, "prompt")
+    ? (typeof entry.prompt === "string" && entry.prompt.trim() !== "" ? entry.prompt : null)
+    : base.prompt;
+
+  return { execution: execution || null, prompt: prompt || null };
+}
+
+// Merges `override` onto `base` (a full config object, e.g. from
+// defaultConfig() or a previously loaded/saved config) using patch
+// semantics: a key missing from `override` keeps the value from `base`.
+function mergeConfig(base, override) {
+  const baseConfig = base && typeof base === "object" ? base : defaultConfig();
+  const baseModes = baseConfig.modes || emptyModes();
+
+  const merged = {
+    version: CONFIG_VERSION,
+    defaultExecution: hasOwn(override, "defaultExecution")
+      ? (isValidExecutionValue(override.defaultExecution) && override.defaultExecution
+          ? override.defaultExecution
+          : "interactive")
+      : baseConfig.defaultExecution || "interactive",
+    modes: {},
+  };
 
   const overrideModes = (override && override.modes) || {};
   for (const mode of MODES) {
-    const src = overrideModes[mode] || {};
-    const dest = merged.modes[mode];
-
-    if (VALID_EXECUTIONS.has(src.execution)) {
-      dest.execution = src.execution;
-    }
-    if (typeof src.prompt === "string" && src.prompt.trim() !== "") {
-      dest.prompt = src.prompt;
-    }
+    const baseEntry = baseModes[mode] || { execution: null, prompt: null };
+    merged.modes[mode] = normalizeModeEntry(overrideModes[mode], baseEntry);
   }
 
   return merged;
@@ -114,6 +147,14 @@ function resolvePrompt(config, mode, vars) {
   for (const [key, value] of Object.entries(vars)) {
     prompt = prompt.split(`{${key}}`).join(value == null ? "" : String(value));
   }
+
+  const leftover = prompt.match(/\{[a-zA-Z0-9_]+\}/g);
+  if (leftover) {
+    console.error(
+      `[hanto] Warning: this "${mode}" prompt still contains unresolved placeholder(s): ${leftover.join(", ")}`
+    );
+  }
+
   return prompt;
 }
 
@@ -135,6 +176,8 @@ module.exports = {
   defaultConfig,
   loadConfig,
   mergeConfig,
+  isValidExecutionValue,
+  isValidPromptValue,
   resolveExecution,
   resolvePrompt,
   saveConfig,

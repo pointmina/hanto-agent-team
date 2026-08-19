@@ -69,8 +69,14 @@ function launchClaude(mode, execution, prompt) {
   const label = execution === "headless" ? "headless" : "interactive";
   console.log(`[hanto] ${mode} · ${label}`);
 
-  const args = execution === "headless" ? ["-p", prompt] : [prompt];
-  const result = spawnSync("claude", args, { stdio: "inherit" });
+  // "--" marks the end of options so a prompt that happens to start with
+  // "-" (e.g. a user running `hanto quick -p`) is never mistaken for one
+  // of claude's own flags.
+  const args = execution === "headless" ? ["-p", "--", prompt] : ["--", prompt];
+  const result = spawnSync("claude", args, {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
 
   if (result.error) {
     if (result.error.code === "ENOENT") {
@@ -87,62 +93,65 @@ function launchClaude(mode, execution, prompt) {
   process.exit(result.status == null ? 1 : result.status);
 }
 
-function runCommand(args) {
+// Shared by run/find-skills/mcp/quick: parse the execution flag, let
+// buildVars(rest) turn the remaining positional args into either
+// { vars } (proceed) or { error } (print usage and stop), then resolve
+// config and launch. Each mode's own function only owns its argument
+// shape and error text.
+function execModeCommand(mode, args, buildVars) {
   const { execution: flagExecution, rest } = parseExecutionFlag(args);
-  const slug = rest[0];
-  if (!slug) {
-    printUsageAndExit("hanto run needs a <slug>.\n  Example: hanto run login-form \"login screen with email/password\"");
+  const { vars, error } = buildVars(rest);
+  if (error) {
+    printUsageAndExit(error);
   }
-  if (!SLUG_RE.test(slug)) {
-    printUsageAndExit(
-      `Invalid slug: "${slug}". Slugs must be lowercase kebab-case (e.g. "login-form").`
-    );
-  }
-  const description = rest.slice(1).join(" ");
 
   const config = defaults.loadConfig(process.cwd());
-  const execution = defaults.resolveExecution(config, "run", flagExecution);
-  const prompt = defaults.resolvePrompt(config, "run", { slug, input: description });
-  launchClaude("run", execution, prompt);
+  const execution = defaults.resolveExecution(config, mode, flagExecution);
+  const prompt = defaults.resolvePrompt(config, mode, vars);
+  launchClaude(mode, execution, prompt);
+}
+
+function runCommand(args) {
+  execModeCommand("run", args, (rest) => {
+    const slug = rest[0];
+    if (!slug) {
+      return { error: "hanto run needs a <slug>.\n  Example: hanto run login-form \"login screen with email/password\"" };
+    }
+    if (!SLUG_RE.test(slug)) {
+      return { error: `Invalid slug: "${slug}". Slugs must be lowercase kebab-case (e.g. "login-form").` };
+    }
+    return { vars: { slug, input: rest.slice(1).join(" ") } };
+  });
 }
 
 function findSkillsCommand(args) {
-  const { execution: flagExecution, rest } = parseExecutionFlag(args);
-  const query = rest.join(" ");
-  if (!query) {
-    printUsageAndExit("hanto find-skills needs a query.\n  Example: hanto find-skills \"browser automation for tests\"");
-  }
-
-  const config = defaults.loadConfig(process.cwd());
-  const execution = defaults.resolveExecution(config, "find-skills", flagExecution);
-  const prompt = defaults.resolvePrompt(config, "find-skills", { input: query });
-  launchClaude("find-skills", execution, prompt);
+  execModeCommand("find-skills", args, (rest) => {
+    const query = rest.join(" ");
+    if (!query) {
+      return { error: "hanto find-skills needs a query.\n  Example: hanto find-skills \"browser automation for tests\"" };
+    }
+    return { vars: { input: query } };
+  });
 }
 
 function mcpCommand(args) {
-  const { execution: flagExecution, rest } = parseExecutionFlag(args);
-  const description = rest.join(" ");
-  if (!description) {
-    printUsageAndExit("hanto mcp needs a description.\n  Example: hanto mcp \"connect to the Notion API\"");
-  }
-
-  const config = defaults.loadConfig(process.cwd());
-  const execution = defaults.resolveExecution(config, "mcp", flagExecution);
-  const prompt = defaults.resolvePrompt(config, "mcp", { input: description });
-  launchClaude("mcp", execution, prompt);
+  execModeCommand("mcp", args, (rest) => {
+    const description = rest.join(" ");
+    if (!description) {
+      return { error: "hanto mcp needs a description.\n  Example: hanto mcp \"connect to the Notion API\"" };
+    }
+    return { vars: { input: description } };
+  });
 }
 
 function quickCommand(args) {
-  const { execution: flagExecution, rest } = parseExecutionFlag(args);
-  const task = rest.join(" ");
-  if (!task) {
-    printUsageAndExit("hanto quick needs a task.\n  Example: hanto quick \"rename foo() to bar() across the repo\"");
-  }
-
-  const config = defaults.loadConfig(process.cwd());
-  const execution = defaults.resolveExecution(config, "quick", flagExecution);
-  const prompt = defaults.resolvePrompt(config, "quick", { input: task });
-  launchClaude("quick", execution, prompt);
+  execModeCommand("quick", args, (rest) => {
+    const task = rest.join(" ");
+    if (!task) {
+      return { error: "hanto quick needs a task.\n  Example: hanto quick \"rename foo() to bar() across the repo\"" };
+    }
+    return { vars: { input: task } };
+  });
 }
 
 function configCommand() {
@@ -176,7 +185,7 @@ function main() {
     case "--help":
     case undefined:
       console.log(USAGE);
-      process.exit(cmd ? 0 : 1);
+      process.exit(0);
       break;
     default:
       printUsageAndExit(`Unknown command: "${cmd}"`);

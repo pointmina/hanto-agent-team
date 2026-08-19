@@ -29,16 +29,21 @@ function validateBody(body) {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return ["요청 본문이 올바른 형식이 아닙니다."];
   }
-  if (body.defaultExecution != null && !defaults.VALID_EXECUTIONS.has(body.defaultExecution)) {
+  if (!defaults.isValidExecutionValue(body.defaultExecution)) {
     errors.push("defaultExecution 값이 올바르지 않습니다.");
   }
   const modes = body.modes || {};
   for (const mode of defaults.MODES) {
-    const m = modes[mode] || {};
-    if (m.execution != null && !defaults.VALID_EXECUTIONS.has(m.execution)) {
+    if (!(mode in modes)) continue;
+    const m = modes[mode];
+    if (typeof m !== "object" || m === null || Array.isArray(m)) {
+      errors.push(`${mode} 항목이 올바른 형식이 아닙니다.`);
+      continue;
+    }
+    if (!defaults.isValidExecutionValue(m.execution)) {
       errors.push(`${mode}의 실행 방식 값이 올바르지 않습니다.`);
     }
-    if (m.prompt != null && typeof m.prompt !== "string") {
+    if (!defaults.isValidPromptValue(m.prompt)) {
       errors.push(`${mode}의 프롬프트 값이 문자열이 아닙니다.`);
     }
   }
@@ -242,6 +247,16 @@ load();
 
 function startConfigServer(cwd) {
   let idleTimer;
+  let expectedOrigin = null; // set once the server knows its own port
+
+  // Blocks cross-origin POSTs from other browser tabs (CSRF) while still
+  // allowing non-browser callers (curl, scripts) that send no Origin header
+  // at all - a real browser always sends Origin on a cross-origin fetch.
+  function isAllowedOrigin(req) {
+    const origin = req.headers.origin;
+    if (!origin) return true;
+    return origin === expectedOrigin;
+  }
 
   function scheduleShutdown(delayMs) {
     setTimeout(() => {
@@ -260,6 +275,12 @@ function startConfigServer(cwd) {
   const server = http.createServer((req, res) => {
     resetIdleTimer();
 
+    if (req.method === "POST" && !isAllowedOrigin(req)) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, errors: ["잘못된 출처(origin)의 요청입니다."] }));
+      return;
+    }
+
     if (req.method === "GET" && req.url === "/") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(renderPage());
@@ -275,6 +296,9 @@ function startConfigServer(cwd) {
 
     if (req.method === "POST" && req.url === "/api/config") {
       let raw = "";
+      req.on("error", (err) => {
+        console.error(`[hanto] Request aborted before it finished: ${err.message}`);
+      });
       req.on("data", (chunk) => (raw += chunk));
       req.on("end", () => {
         let body;
@@ -293,7 +317,7 @@ function startConfigServer(cwd) {
           return;
         }
 
-        const merged = defaults.mergeConfig(defaults.defaultConfig(), body);
+        const merged = defaults.mergeConfig(defaults.loadConfig(cwd), body);
         try {
           defaults.saveConfig(cwd, merged);
         } catch (err) {
@@ -324,6 +348,7 @@ function startConfigServer(cwd) {
   server.listen(0, "127.0.0.1", () => {
     const { port } = server.address();
     const url = `http://127.0.0.1:${port}/`;
+    expectedOrigin = `http://127.0.0.1:${port}`;
     console.log(`[hanto] Config UI: ${url}`);
     console.log("[hanto] Opening in your browser (Ctrl+C to cancel)...");
     openBrowser(url);
