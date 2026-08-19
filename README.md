@@ -69,6 +69,37 @@ prior handoff docs as context. Typical flow in one session:
 "Use reviewer to review <slug>"
 ```
 
+## CLI: `hanto` mode switcher
+
+The same package also installs a `hanto` command that launches Claude Code from your
+shell with a preset prompt, so you don't have to phrase the mode by hand every time:
+
+```bash
+hanto run <slug> [description...]   # full pipeline, starting at planner
+hanto find-skills <query...>        # look for a public skill for this task
+hanto mcp <description...>          # build an MCP server for a service/API
+hanto quick <task...>               # run the input as-is, no pipeline/skill steering
+hanto config                        # open the local settings page in your browser
+hanto install                       # copy the 5 agents into ./.claude/agents/
+```
+
+`run`'s `<slug>` must be lowercase kebab-case (e.g. `login-form`) — it's reused as the
+`docs/spec-<slug>.md` name once the pipeline starts. All human approval gates from each
+agent's own definition stay intact; the CLI only picks the starting prompt.
+
+Each command launches an interactive `claude` session by default. Override once with
+`--headless` (runs `claude -p` and exits) or `--interactive`.
+
+### Settings
+
+Run `hanto config` to open a small local settings page (served from `127.0.0.1`, no
+external network access) with a dark/light-toggle-style switch for the default execution
+mode and one card per subcommand for overriding its execution mode and prompt template.
+Saving writes `.claude/hanto.config.json` in the current project — commit it to share the
+same defaults with your team. Placeholders available in prompt templates: `{input}`
+everywhere, `{slug}` in `run` only. Deleting the file (or never creating it) is fine —
+every command falls back to its built-in default.
+
 ## Why separate agents instead of one
 
 Each agent's tool grant enforces its boundary instead of relying on a prompt to "please
